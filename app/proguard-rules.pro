@@ -33,10 +33,7 @@
 
 # Cling
 -keep class org.fourthline.cling.** { *; }
-
-# Cronet
--keep class org.chromium.net.** { *; }
--keep class com.google.net.cronet.** { *; }
+-keep class javax.xml.** { *; }
 
 # EXO
 -keep class org.xmlpull.v1.** { *; }
@@ -49,6 +46,9 @@
 
 # Mozilla
 -keep class org.mozilla.javascript.** { *; }
+
+# Nano
+-keep class fi.iki.elonen.** { *; }
 
 # QuickJS
 -keep class com.whl.quickjs.** { *; }
