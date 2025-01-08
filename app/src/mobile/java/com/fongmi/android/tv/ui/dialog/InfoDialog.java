@@ -1,14 +1,13 @@
 package com.fongmi.android.tv.ui.dialog;
 
 import android.app.Activity;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 
 import androidx.appcompat.app.AlertDialog;
 
-import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.databinding.DialogInfoBinding;
-import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.Util;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
@@ -62,30 +61,35 @@ public class InfoDialog {
     }
 
     private void initView() {
-        binding.url.setText(url);
         binding.title.setText(title);
+        binding.url.setText(fixUrl());
         binding.header.setText(header);
-        binding.header.setVisibility(header.isEmpty() ? View.GONE : View.VISIBLE);
+        binding.url.setVisibility(TextUtils.isEmpty(url) ? View.GONE : View.VISIBLE);
+        binding.header.setVisibility(TextUtils.isEmpty(header) ? View.GONE : View.VISIBLE);
     }
 
     private void initEvent() {
         binding.url.setOnClickListener(this::onShare);
-        binding.url.setOnLongClickListener(this::onCopy);
+        binding.url.setOnLongClickListener(v -> onCopy(url));
+        binding.header.setOnLongClickListener(v -> onCopy(header));
+    }
+
+    private String fixUrl() {
+        return TextUtils.isEmpty(url) ? "" : url.startsWith("data") ? url.substring(0, Math.min(url.length(), 128)).concat("...") : url;
     }
 
     private void onShare(View view) {
-        callback.onShare(title, url);
+        callback.onShare(title);
         dialog.dismiss();
     }
 
-    private boolean onCopy(View view) {
-        Notify.show(R.string.copied);
-        Util.copy(url);
+    private boolean onCopy(String text) {
+        Util.copy(text);
         return true;
     }
 
     public interface Listener {
 
-        void onShare(CharSequence title, String url);
+        void onShare(CharSequence title);
     }
 }

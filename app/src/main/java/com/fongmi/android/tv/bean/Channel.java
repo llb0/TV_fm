@@ -23,6 +23,8 @@ public class Channel {
 
     @SerializedName("urls")
     private List<String> urls;
+    @SerializedName("tvgName")
+    private String tvgName;
     @SerializedName("number")
     private String number;
     @SerializedName("logo")
@@ -33,8 +35,16 @@ public class Channel {
     private String name;
     @SerializedName("ua")
     private String ua;
+    @SerializedName("click")
+    private String click;
+    @SerializedName("format")
+    private String format;
+    @SerializedName("origin")
+    private String origin;
     @SerializedName("referer")
     private String referer;
+    @SerializedName("catchup")
+    private Catchup catchup;
     @SerializedName("header")
     private JsonElement header;
     @SerializedName("playerType")
@@ -78,6 +88,14 @@ public class Channel {
 
     public Channel(String name) {
         this.name = name;
+    }
+
+    public String getTvgName() {
+        return TextUtils.isEmpty(tvgName) ? getName() : tvgName;
+    }
+
+    public void setTvgName(String tvgName) {
+        this.tvgName = tvgName;
     }
 
     public List<String> getUrls() {
@@ -128,12 +146,44 @@ public class Channel {
         this.ua = ua;
     }
 
+    public String getClick() {
+        return TextUtils.isEmpty(click) ? "" : click;
+    }
+
+    public void setClick(String click) {
+        this.click = click;
+    }
+
+    public String getFormat() {
+        return format;
+    }
+
+    public void setFormat(String format) {
+        this.format = format;
+    }
+
+    public String getOrigin() {
+        return TextUtils.isEmpty(origin) ? "" : origin;
+    }
+
+    public void setOrigin(String origin) {
+        this.origin = origin;
+    }
+
     public String getReferer() {
         return TextUtils.isEmpty(referer) ? "" : referer;
     }
 
     public void setReferer(String referer) {
         this.referer = referer;
+    }
+
+    public Catchup getCatchup() {
+        return catchup == null ? new Catchup() : catchup;
+    }
+
+    public void setCatchup(Catchup catchup) {
+        this.catchup = catchup;
     }
 
     public JsonElement getHeader() {
@@ -256,6 +306,12 @@ public class Channel {
         return getUrls().isEmpty() || getLine() == getUrls().size() - 1;
     }
 
+    public boolean hasCatchup() {
+        if (getCatchup().isEmpty() && getCurrent().contains("/PLTV/")) setCatchup(Catchup.PLTV());
+        if (!getCatchup().getRegex().isEmpty()) return getCatchup().match(getCurrent());
+        return !getCatchup().isEmpty();
+    }
+
     public String getLineText() {
         if (getUrls().size() <= 1) return "";
         if (getCurrent().contains("$")) return getCurrent().split("\\$")[1];
@@ -273,12 +329,15 @@ public class Channel {
     }
 
     public void live(Live live) {
-        if (live.getUa().length() > 0 && getUa().isEmpty()) setUa(live.getUa());
+        if (!live.getUa().isEmpty() && getUa().isEmpty()) setUa(live.getUa());
         if (live.getHeader() != null && getHeader() == null) setHeader(live.getHeader());
-        if (live.getReferer().length() > 0 && getReferer().isEmpty()) setReferer(live.getReferer());
+        if (!live.getClick().isEmpty() && getClick().isEmpty()) setClick(live.getClick());
+        if (!live.getOrigin().isEmpty() && getOrigin().isEmpty()) setOrigin(live.getOrigin());
+        if (!live.getCatchup().isEmpty() && getCatchup().isEmpty()) setCatchup(live.getCatchup());
+        if (!live.getReferer().isEmpty() && getReferer().isEmpty()) setReferer(live.getReferer());
         if (live.getPlayerType() != -1 && getPlayerType() == -1) setPlayerType(live.getPlayerType());
-        if (!getEpg().startsWith("http")) setEpg(live.getEpg().replace("{name}", getName()).replace("{epg}", getEpg()));
-        if (!getLogo().startsWith("http")) setLogo(live.getLogo().replace("{name}", getName()).replace("{logo}", getLogo()));
+        if (live.getEpg().contains("{") && !getEpg().startsWith("http")) setEpg(live.getEpg().replace("{name}", getTvgName()).replace("{epg}", getEpg()));
+        if (live.getLogo().contains("{") && !getLogo().startsWith("http")) setLogo(live.getLogo().replace("{name}", getTvgName()).replace("{logo}", getLogo()));
     }
 
     public void setLine(String line) {
@@ -288,19 +347,26 @@ public class Channel {
     public Map<String, String> getHeaders() {
         Map<String, String> headers = Json.toMap(getHeader());
         if (!getUa().isEmpty()) headers.put(HttpHeaders.USER_AGENT, getUa());
+        if (!getOrigin().isEmpty()) headers.put(HttpHeaders.ORIGIN, getOrigin());
         if (!getReferer().isEmpty()) headers.put(HttpHeaders.REFERER, getReferer());
         return headers;
     }
 
     public Channel copy(Channel item) {
         setPlayerType(item.getPlayerType());
+        setCatchup(item.getCatchup());
         setReferer(item.getReferer());
+        setTvgName(item.getTvgName());
         setHeader(item.getHeader());
         setNumber(item.getNumber());
+        setOrigin(item.getOrigin());
+        setFormat(item.getFormat());
         setParse(item.getParse());
+        setClick(item.getClick());
         setLogo(item.getLogo());
         setName(item.getName());
         setUrls(item.getUrls());
+        setData(item.getData());
         setDrm(item.getDrm());
         setEpg(item.getEpg());
         setUa(item.getUa());
@@ -309,6 +375,7 @@ public class Channel {
 
     public Result result() {
         Result result = new Result();
+        result.setClick(getClick());
         result.setUrl(Url.create().add(getUrl()));
         result.setHeader(Json.toObject(getHeaders()));
         return result;

@@ -42,7 +42,7 @@ public class Local implements Process {
 
     private NanoHTTPD.Response getFile(Map<String, String> headers, String path) {
         try {
-            File file = Path.root(path.substring(6));
+            File file = Path.root(path.substring(5));
             if (file.isDirectory()) return getFolder(file);
             if (file.isFile()) return getFile(headers, file, NanoHTTPD.getMimeTypeForFile(path));
             throw new FileNotFoundException();
@@ -56,7 +56,7 @@ public class Local implements Process {
         for (String k : files.keySet()) {
             String fn = params.get(k);
             File temp = new File(files.get(k));
-            if (fn.toLowerCase().endsWith(".zip")) FileUtil.unzip(temp, Path.root(path));
+            if (fn.toLowerCase().endsWith(".zip")) FileUtil.extractZip(temp, Path.root(path));
             else Path.copy(temp, Path.root(path, fn));
         }
         return Nano.success();

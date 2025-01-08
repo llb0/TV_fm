@@ -61,11 +61,10 @@ public class UaDialog implements DialogInterface.OnDismissListener {
 
     private void initView() {
         String text = Setting.getUa();
-        String address = Server.get().getAddress();
         binding.text.setText(text);
-        binding.code.setImageBitmap(QRCode.getBitmap(address, 200, 0));
         binding.text.setSelection(TextUtils.isEmpty(text) ? 0 : text.length());
-        binding.info.setText(ResUtil.getString(R.string.push_info, address).replace("，", "\n"));
+        binding.code.setImageBitmap(QRCode.getBitmap(Server.get().getAddress(3), 200, 0));
+        binding.info.setText(ResUtil.getString(R.string.push_info, Server.get().getAddress()).replace("，", "\n"));
     }
 
     private void initEvent() {
@@ -85,12 +84,12 @@ public class UaDialog implements DialogInterface.OnDismissListener {
     }
 
     private void detect(String s) {
-        if (append && s.equalsIgnoreCase("c")) {
+        if (append && "c".equalsIgnoreCase(s)) {
             append = false;
             binding.text.setText(Util.CHROME);
-        } else if (append && s.equalsIgnoreCase("o")) {
+        } else if (append && "o".equalsIgnoreCase(s)) {
             append = false;
-            binding.text.setText(okhttp3.internal.Util.userAgent);
+            binding.text.setText(Util.OKHTTP);
         } else if (s.length() > 1) {
             append = false;
         } else if (s.length() == 0) {

@@ -1,7 +1,6 @@
 package com.fongmi.android.tv.utils;
 
 import android.app.Activity;
-import android.app.UiModeManager;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.ComponentName;
@@ -9,17 +8,19 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
-import android.content.res.Configuration;
+import android.os.BatteryManager;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.Parcelable;
 import android.provider.Settings;
+import android.text.TextUtils;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.R;
 import com.github.catvod.Init;
 
 import java.text.SimpleDateFormat;
@@ -66,25 +67,38 @@ public class Util {
 
     public static CharSequence getClipText() {
         ClipboardManager manager = (ClipboardManager) App.get().getSystemService(Context.CLIPBOARD_SERVICE);
-        return manager.getText();
+        ClipData clipData = manager == null ? null : manager.getPrimaryClip();
+        if (clipData == null || clipData.getItemCount() == 0) return "";
+        return clipData.getItemAt(0).getText();
     }
 
     public static void copy(String text) {
-        ClipboardManager manager = (ClipboardManager) App.get().getSystemService(Context.CLIPBOARD_SERVICE);
-        manager.setPrimaryClip(ClipData.newPlainText("", text));
+        try {
+            ClipboardManager manager = (ClipboardManager) App.get().getSystemService(Context.CLIPBOARD_SERVICE);
+            manager.setPrimaryClip(ClipData.newPlainText("", text));
+            Notify.show(R.string.copied);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public static int getDigit(String text) {
         try {
             if (text.startsWith("上") || text.startsWith("下")) return -1;
-            return Integer.parseInt(text.replaceAll("(mp4|H264|H265|720p|1080p|2160p|4k|4K)", "").replaceAll("\\D+", ""));
+            return Integer.parseInt(text.replaceAll("(?i)(mp4|H264|H265|720p|1080p|2160p|4K)", "").replaceAll("\\D+", ""));
         } catch (Exception e) {
             return -1;
         }
     }
 
-    public static String getDeviceId() {
-        return Settings.Secure.getString(Init.context().getContentResolver(), Settings.Secure.ANDROID_ID);
+    public static String getAndroidId() {
+        try {
+            String id = Settings.Secure.getString(Init.context().getContentResolver(), Settings.Secure.ANDROID_ID);
+            if (TextUtils.isEmpty(id)) throw new NullPointerException();
+            return id;
+        } catch (Exception e) {
+            return "0000000000000000";
+        }
     }
 
     public static String getDeviceName() {
@@ -150,7 +164,7 @@ public class Util {
 
     public static boolean isTvBox() {
         PackageManager pm = App.get().getPackageManager();
-        if (Configuration.UI_MODE_TYPE_TELEVISION == ((UiModeManager) App.get().getSystemService(Context.UI_MODE_SERVICE)).getCurrentModeType()) {
+        if (!pm.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN) && !pm.hasSystemFeature(PackageManager.FEATURE_TELEPHONY)) {
             return true;
         }
         if (pm.hasSystemFeature("amazon.hardware.fire_tv")) {
@@ -172,4 +186,18 @@ public class Util {
         }
         return false;
     }
+
+    public static int batteryLevel() {
+        BatteryManager batteryManager = (BatteryManager) App.get().getSystemService(Context.BATTERY_SERVICE);
+        return batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+    }
+
+    public static void restartApp(Activity activity) {
+        Intent intent = activity.getBaseContext().getPackageManager().getLaunchIntentForPackage(activity.getBaseContext().getPackageName());
+        ComponentName componentName = intent.getComponent();
+        Intent mainIntent = Intent.makeRestartActivityTask(componentName);
+        activity.startActivity(mainIntent);
+        Runtime.getRuntime().exit(0);
+    }
+
 }

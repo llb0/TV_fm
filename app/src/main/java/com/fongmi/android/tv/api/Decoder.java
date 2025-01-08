@@ -4,6 +4,7 @@ import android.util.Base64;
 
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.net.OkHttp;
+import com.github.catvod.utils.Asset;
 import com.github.catvod.utils.Json;
 import com.github.catvod.utils.Path;
 import com.github.catvod.utils.Util;
@@ -19,12 +20,14 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class Decoder {
 
+    private static final Pattern JS_URI = Pattern.compile("\"(\\.|\\.\\.)/(.?|.+?)\\.js\\?(.?|.+?)\"");
+
     public static String getJson(String url) throws Exception {
         String key = url.contains(";") ? url.split(";")[2] : "";
         url = url.contains(";") ? url.split(";")[0] : url;
         String data = getData(url);
-        if (Json.valid(data)) return fix(url, data);
         if (data.isEmpty()) throw new Exception();
+        if (Json.valid(data)) return fix(url, data);
         if (data.contains("**")) data = base64(data);
         if (data.startsWith("2423")) data = cbc(data);
         if (key.length() > 0) data = ecb(data, key);
@@ -32,9 +35,21 @@ public class Decoder {
     }
 
     private static String fix(String url, String data) {
-        if (url.startsWith("file")) url = UrlUtil.convert(url);
-        data = data.replace("./", url.substring(0, url.lastIndexOf("/") + 1));
+        url = UrlUtil.convert(url);
+        Matcher matcher = JS_URI.matcher(data);
+        while (matcher.find()) data = replace(url, data, matcher.group());
+        if (data.contains("../")) data = data.replace("../", UrlUtil.resolve(url, "../"));
+        if (data.contains("./")) data = data.replace("./", UrlUtil.resolve(url, "./"));
+        if (data.contains("__JS1__")) data = data.replace("__JS1__", "./");
+        if (data.contains("__JS2__")) data = data.replace("__JS2__", "../");
         return data;
+    }
+
+    private static String replace(String url, String data, String ext) {
+        String t = ext.replace("\"./", "\"" + UrlUtil.resolve(url, "./"));
+        t = t.replace("\"../", "\"" + UrlUtil.resolve(url, "../"));
+        t = t.replace("./", "__JS1__").replace("../", "__JS2__");
+        return data.replace(ext, t);
     }
 
     public static String getExt(String ext) {
@@ -45,21 +60,20 @@ public class Decoder {
         }
     }
 
-    public static File getSpider(String url, String md5) {
+    public static File getSpider(String url) {
         try {
             File file = Path.jar(url);
-            if (md5.length() > 0 && Util.equals(url, md5)) return file;
             String data = extract(getData(url.substring(4)));
-            if (data.isEmpty()) return Path.jar(url);
-            return Path.write(file, Base64.decode(data, Base64.DEFAULT));
+            return data.isEmpty() ? file : Path.write(file, Base64.decode(data, Base64.DEFAULT));
         } catch (Exception ignored) {
             return Path.jar(url);
         }
     }
 
     private static String getData(String url) {
-        if (url.startsWith("http")) return OkHttp.string(url);
         if (url.startsWith("file")) return Path.read(url);
+        if (url.startsWith("assets")) return Asset.read(url);
+        if (url.startsWith("http")) return OkHttp.string(url);
         return "";
     }
 
@@ -67,11 +81,11 @@ public class Decoder {
         SecretKeySpec spec = new SecretKeySpec(padEnd(key).getBytes(), "AES");
         Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
         cipher.init(Cipher.DECRYPT_MODE, spec);
-        return new String(cipher.doFinal(decodeHex(data)), StandardCharsets.UTF_8);
+        return new String(cipher.doFinal(Util.hex2byte(data)), StandardCharsets.UTF_8);
     }
 
     private static String cbc(String data) throws Exception {
-        String decode = new String(decodeHex(data)).toLowerCase();
+        String decode = new String(Util.hex2byte(data)).toLowerCase();
         String key = padEnd(decode.substring(decode.indexOf("$#") + 2, decode.indexOf("#$")));
         String iv = padEnd(decode.substring(decode.length() - 13));
         SecretKeySpec keySpec = new SecretKeySpec(key.getBytes(), "AES");
@@ -79,7 +93,7 @@ public class Decoder {
         Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
         cipher.init(Cipher.DECRYPT_MODE, keySpec, ivSpec);
         data = data.substring(data.indexOf("2324") + 4, data.length() - 26);
-        byte[] decryptData = cipher.doFinal(decodeHex(data));
+        byte[] decryptData = cipher.doFinal(Util.hex2byte(data));
         return new String(decryptData, StandardCharsets.UTF_8);
     }
 
@@ -96,11 +110,5 @@ public class Decoder {
 
     private static String padEnd(String key) {
         return key + "0000000000000000".substring(key.length());
-    }
-
-    private static byte[] decodeHex(String s) {
-        byte[] bytes = new byte[s.length() / 2];
-        for (int i = 0; i < bytes.length; i++) bytes[i] = Integer.valueOf(s.substring(i * 2, i * 2 + 2), 16).byteValue();
-        return bytes;
     }
 }

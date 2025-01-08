@@ -19,7 +19,7 @@ import androidx.viewbinding.ViewBinding;
 import androidx.viewpager.widget.ViewPager;
 
 import com.fongmi.android.tv.App;
-import com.fongmi.android.tv.api.ApiConfig;
+import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Class;
 import com.fongmi.android.tv.bean.Filter;
 import com.fongmi.android.tv.bean.Result;
@@ -31,7 +31,6 @@ import com.fongmi.android.tv.ui.presenter.TypePresenter;
 import com.fongmi.android.tv.utils.KeyUtil;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.github.catvod.utils.Prefers;
-import com.github.catvod.utils.Trans;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,7 +45,7 @@ public class VodActivity extends BaseActivity implements TypePresenter.OnClickLi
     private View mOldView;
 
     public static void start(Activity activity, Result result) {
-        start(activity, ApiConfig.get().getHome().getKey(), result);
+        start(activity, VodConfig.get().getHome().getKey(), result);
     }
 
     public static void start(Activity activity, String key, Result result) {
@@ -71,7 +70,7 @@ public class VodActivity extends BaseActivity implements TypePresenter.OnClickLi
     }
 
     private Site getSite() {
-        return ApiConfig.get().getSite(getKey());
+        return VodConfig.get().getSite(getKey());
     }
 
     @Override
@@ -110,7 +109,7 @@ public class VodActivity extends BaseActivity implements TypePresenter.OnClickLi
 
     private List<Class> getTypes(Result result) {
         List<Class> items = new ArrayList<>();
-        for (String cate : getSite().getCategories()) for (Class item : result.getTypes()) if (Trans.s2t(cate).equals(item.getTypeName())) items.add(item);
+        for (String cate : getSite().getCategories()) for (Class item : result.getTypes()) if (cate.equals(item.getTypeName())) items.add(item);
         return items;
     }
 
@@ -161,6 +160,11 @@ public class VodActivity extends BaseActivity implements TypePresenter.OnClickLi
     }
 
     @Override
+    public boolean onItemLongClick(Class item) {
+        return true;
+    }
+
+    @Override
     public void onRefresh(Class item) {
         getFragment().onRefresh();
     }
@@ -190,7 +194,7 @@ public class VodActivity extends BaseActivity implements TypePresenter.OnClickLi
         @Override
         public Fragment getItem(int position) {
             Class type = (Class) mAdapter.get(position);
-            return VodFragment.newInstance(getKey(), type.getTypeId(), type.getStyle(), type.getExtend(false), type.getTypeFlag().equals("1"));
+            return VodFragment.newInstance(getKey(), type.getTypeId(), type.getStyle(), type.getExtend(false), "1".equals(type.getTypeFlag()));
         }
 
         @Override

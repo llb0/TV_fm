@@ -1,11 +1,9 @@
 package com.fongmi.android.tv.ui.activity;
 
-import android.Manifest;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.os.Bundle;
-import android.text.TextUtils;
 import android.view.MenuItem;
 import android.view.View;
 
@@ -19,20 +17,22 @@ import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.Updater;
-import com.fongmi.android.tv.api.ApiConfig;
-import com.fongmi.android.tv.api.LiveConfig;
-import com.fongmi.android.tv.api.WallConfig;
+import com.fongmi.android.tv.api.config.LiveConfig;
+import com.fongmi.android.tv.api.config.VodConfig;
+import com.fongmi.android.tv.api.config.WallConfig;
 import com.fongmi.android.tv.bean.Config;
 import com.fongmi.android.tv.databinding.ActivityMainBinding;
 import com.fongmi.android.tv.db.AppDatabase;
 import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.event.ServerEvent;
+import com.fongmi.android.tv.event.StateEvent;
 import com.fongmi.android.tv.impl.Callback;
 import com.fongmi.android.tv.player.Source;
 import com.fongmi.android.tv.receiver.ShortcutReceiver;
 import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.custom.FragmentStateManager;
+import com.fongmi.android.tv.ui.fragment.SettingCustomFragment;
 import com.fongmi.android.tv.ui.fragment.SettingFragment;
 import com.fongmi.android.tv.ui.fragment.SettingPlayerFragment;
 import com.fongmi.android.tv.ui.fragment.VodFragment;
@@ -40,7 +40,6 @@ import com.fongmi.android.tv.utils.FileChooser;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.google.android.material.navigation.NavigationBarView;
-import com.permissionx.guolindev.PermissionX;
 
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
@@ -64,8 +63,8 @@ public class MainActivity extends BaseActivity implements NavigationBarView.OnIt
 
     @Override
     protected void initView(Bundle savedInstanceState) {
+        Updater.get().release().start(this);
         initFragment(savedInstanceState);
-        Updater.get().release().start();
         Server.get().start();
         initConfig();
     }
@@ -95,6 +94,7 @@ public class MainActivity extends BaseActivity implements NavigationBarView.OnIt
                 if (position == 0) return VodFragment.newInstance();
                 if (position == 1) return SettingFragment.newInstance();
                 if (position == 2) return SettingPlayerFragment.newInstance();
+                if (position == 3) return SettingCustomFragment.newInstance();
                 return null;
             }
         };
@@ -104,11 +104,16 @@ public class MainActivity extends BaseActivity implements NavigationBarView.OnIt
     private void initConfig() {
         WallConfig.get().init();
         LiveConfig.get().init().load();
-        ApiConfig.get().init().load(getCallback());
+        VodConfig.get().init().load(getCallback(), true);
     }
 
     private Callback getCallback() {
         return new Callback() {
+            @Override
+            public void success(String result) {
+                Notify.show(result);
+            }
+
             @Override
             public void success() {
                 checkAction(getIntent());
@@ -118,21 +123,11 @@ public class MainActivity extends BaseActivity implements NavigationBarView.OnIt
 
             @Override
             public void error(String msg) {
-                if (TextUtils.isEmpty(msg) && AppDatabase.getBackupKey().exists()) onRestore();
-                else RefreshEvent.empty();
                 RefreshEvent.config();
+                StateEvent.empty();
                 Notify.show(msg);
             }
         };
-    }
-
-    private void onRestore() {
-        PermissionX.init(this).permissions(Manifest.permission.WRITE_EXTERNAL_STORAGE).request((allGranted, grantedList, deniedList) -> AppDatabase.restore(new Callback() {
-            @Override
-            public void success() {
-                initConfig();
-            }
-        }));
     }
 
     private void loadLive(String url) {
@@ -207,6 +202,8 @@ public class MainActivity extends BaseActivity implements NavigationBarView.OnIt
     protected void onBackPress() {
         if (!mBinding.navigation.getMenu().findItem(R.id.vod).isVisible()) {
             setNavigation();
+        } else if (mManager.isVisible(3)) {
+            change(1);
         } else if (mManager.isVisible(2)) {
             change(1);
         } else if (mManager.isVisible(1)) {
@@ -222,7 +219,7 @@ public class MainActivity extends BaseActivity implements NavigationBarView.OnIt
         super.onDestroy();
         WallConfig.get().clear();
         LiveConfig.get().clear();
-        ApiConfig.get().clear();
+        VodConfig.get().clear();
         AppDatabase.backup();
         Source.get().exit();
         Server.get().stop();

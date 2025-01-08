@@ -1,14 +1,13 @@
 package com.github.catvod.net;
 
-import android.net.Uri;
 import android.text.TextUtils;
 
 import androidx.collection.ArrayMap;
 
 import com.github.catvod.bean.Doh;
+import com.github.catvod.net.interceptor.RequestInterceptor;
+import com.github.catvod.net.interceptor.ResponseInterceptor;
 import com.github.catvod.utils.Path;
-import com.github.catvod.utils.Util;
-import com.google.common.net.HttpHeaders;
 
 import java.net.ProxySelector;
 import java.util.Map;
@@ -90,7 +89,6 @@ public class OkHttp {
 
     public static String string(String url) {
         try {
-            if (url.contains("/file://")) url = url.replace("+", "%2B");
             return url.startsWith("http") ? newCall(url).execute().body().string() : "";
         } catch (Exception e) {
             e.printStackTrace();
@@ -98,18 +96,21 @@ public class OkHttp {
         }
     }
 
+    public static String string(String url, Map<String, String> headers) {
+        try {
+            return newCall(url, Headers.of(headers)).execute().body().string();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "";
+        }
+    }
+
     public static Call newCall(String url) {
-        Uri uri = Uri.parse(url);
-        if (uri.getUserInfo() != null) return newCall(url, Headers.of(HttpHeaders.AUTHORIZATION, Util.basic(uri)));
         return client().newCall(new Request.Builder().url(url).build());
     }
 
     public static Call newCall(OkHttpClient client, String url) {
         return client.newCall(new Request.Builder().url(url).build());
-    }
-
-    public static Call newCall(OkHttpClient client, String url, Headers headers) {
-        return client.newCall(new Request.Builder().url(url).headers(headers).build());
     }
 
     public static Call newCall(String url, Headers headers) {
@@ -141,7 +142,7 @@ public class OkHttp {
     }
 
     private static OkHttpClient.Builder getBuilder() {
-        OkHttpClient.Builder builder = new OkHttpClient.Builder().addInterceptor(new OkhttpInterceptor()).connectTimeout(TIMEOUT, TimeUnit.MILLISECONDS).readTimeout(TIMEOUT, TimeUnit.MILLISECONDS).writeTimeout(TIMEOUT, TimeUnit.MILLISECONDS).dns(dns()).hostnameVerifier((hostname, session) -> true).sslSocketFactory(new SSLCompat(), SSLCompat.TM);
+        OkHttpClient.Builder builder = new OkHttpClient.Builder().addInterceptor(new RequestInterceptor()).addNetworkInterceptor(new ResponseInterceptor()).connectTimeout(TIMEOUT, TimeUnit.MILLISECONDS).readTimeout(TIMEOUT, TimeUnit.MILLISECONDS).writeTimeout(TIMEOUT, TimeUnit.MILLISECONDS).dns(dns()).hostnameVerifier((hostname, session) -> true).followRedirects(true).sslSocketFactory(new SSLCompat(), SSLCompat.TM);
         builder.proxySelector(get().proxy ? selector() : defaultSelector);
         return builder;
     }

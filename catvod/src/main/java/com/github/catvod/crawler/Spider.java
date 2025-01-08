@@ -48,6 +48,10 @@ public abstract class Spider {
         return "";
     }
 
+    public String liveContent() throws Exception {
+        return "";
+    }
+
     public boolean manualVideoCheck() throws Exception {
         return false;
     }
@@ -60,6 +64,10 @@ public abstract class Spider {
         return null;
     }
 
+    public String action(String action) throws Exception {
+        return null;
+    }
+
     public void destroy() {
     }
 
@@ -67,7 +75,7 @@ public abstract class Spider {
         return OkHttp.dns();
     }
 
-    public OkHttpClient client() {
+    public static OkHttpClient client() {
         return OkHttp.client();
     }
 }

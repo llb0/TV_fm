@@ -2,12 +2,16 @@ package com.fongmi.android.tv.bean;
 
 import android.text.TextUtils;
 
+import androidx.annotation.NonNull;
 import androidx.room.Entity;
 import androidx.room.Index;
 import androidx.room.PrimaryKey;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.Setting;
 import com.fongmi.android.tv.db.AppDatabase;
+import com.fongmi.android.tv.utils.FileUtil;
+import com.github.catvod.utils.Path;
 import com.github.catvod.utils.Prefers;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.reflect.TypeToken;
@@ -32,6 +36,8 @@ public class Config {
     private String json;
     @SerializedName("name")
     private String name;
+    @SerializedName("logo")
+    private String logo;
     @SerializedName("home")
     private String home;
     @SerializedName("parse")
@@ -41,6 +47,10 @@ public class Config {
         Type listType = new TypeToken<List<Config>>() {}.getType();
         List<Config> items = App.gson().fromJson(str, listType);
         return items == null ? Collections.emptyList() : items;
+    }
+
+    public static Config objectFrom(String str) {
+        return App.gson().fromJson(str, Config.class);
     }
 
     public static Config create(int type) {
@@ -79,6 +89,14 @@ public class Config {
         this.url = url;
     }
 
+    public String getJson() {
+        return json;
+    }
+
+    public void setJson(String json) {
+        this.json = json;
+    }
+
     public String getName() {
         return name;
     }
@@ -87,12 +105,12 @@ public class Config {
         this.name = name;
     }
 
-    public String getJson() {
-        return json;
+    public String getLogo() {
+        return logo;
     }
 
-    public void setJson(String json) {
-        this.json = json;
+    public void setLogo(String logo) {
+        this.logo = logo;
     }
 
     public String getHome() {
@@ -119,6 +137,10 @@ public class Config {
         this.time = time;
     }
 
+    public boolean isCache() {
+        return getTime() + (long)(3600*1000*12 * Setting.getConfigCache()) > System.currentTimeMillis();
+    }
+
     public Config type(int type) {
         setType(type);
         return this;
@@ -129,13 +151,18 @@ public class Config {
         return this;
     }
 
+    public Config json(String json) {
+        setJson(json);
+        return this;
+    }
+
     public Config name(String name) {
         setName(name);
         return this;
     }
 
-    public Config json(String json) {
-        setJson(json);
+    public Config logo(String logo) {
+        setLogo(logo);
         return this;
     }
 
@@ -172,7 +199,9 @@ public class Config {
     }
 
     public static void delete(String url, int type) {
-        AppDatabase.get().getConfigDao().delete(url, type);
+        if (type == 2) Path.clear(FileUtil.getWall(0));
+        if (type == 2) AppDatabase.get().getConfigDao().delete(type);
+        else AppDatabase.get().getConfigDao().delete(url, type);
     }
 
     public static Config vod() {
@@ -204,6 +233,10 @@ public class Config {
         return item == null ? create(type, url, name) : item.type(type).name(name);
     }
 
+    public static Config find(Config config) {
+        return find(config, config.getType());
+    }
+
     public static Config find(Config config, int type) {
         Config item = AppDatabase.get().getConfigDao().find(config.getUrl(), type);
         return item == null ? create(type, config.getUrl(), config.getName()) : item.type(type).name(config.getName());
@@ -220,18 +253,29 @@ public class Config {
         return this;
     }
 
+    public Config save() {
+        if (isEmpty()) return this;
+        AppDatabase.get().getConfigDao().update(this);
+        return this;
+    }
+
     public Config update() {
         if (isEmpty()) return this;
         setTime(System.currentTimeMillis());
         Prefers.put("config_" + getType(), getUrl());
-        AppDatabase.get().getConfigDao().update(this);
-        return this;
+        return save();
     }
 
     public void delete() {
         AppDatabase.get().getConfigDao().delete(getUrl(), getType());
         History.delete(getId());
         Keep.delete(getId());
+    }
+
+    @NonNull
+    @Override
+    public String toString() {
+        return App.gson().toJson(this);
     }
 
     @Override

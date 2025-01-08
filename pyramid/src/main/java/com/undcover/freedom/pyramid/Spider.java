@@ -1,36 +1,30 @@
 package com.undcover.freedom.pyramid;
 
 import android.content.Context;
-import android.text.TextUtils;
-
-import androidx.collection.ArrayMap;
 
 import com.chaquo.python.PyObject;
-import com.github.catvod.Proxy;
-import com.github.catvod.net.OkHttp;
+import com.github.catvod.utils.Path;
+import com.github.catvod.utils.UriUtil;
+import com.github.catvod.utils.Util;
 import com.google.gson.Gson;
-
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.io.ByteArrayInputStream;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-
-import okhttp3.Headers;
 
 public class Spider extends com.github.catvod.crawler.Spider {
 
     private final PyObject app;
     private final PyObject obj;
+    private final String api;
     private final Gson gson;
 
-    public Spider(PyObject app, PyObject obj) {
+    public Spider(PyObject app, PyObject obj, String api) {
         this.gson = new Gson();
         this.app = app;
         this.obj = obj;
+        this.api = api;
     }
 
     @Override
@@ -40,6 +34,8 @@ public class Spider extends com.github.catvod.crawler.Spider {
 
     @Override
     public void init(Context context, String extend) {
+        List<PyObject> items = app.callAttr("getDependence", obj).asList();
+        for (PyObject item : items) download(item + ".py");
         app.callAttr("init", obj, extend);
     }
 
@@ -70,12 +66,17 @@ public class Spider extends com.github.catvod.crawler.Spider {
 
     @Override
     public String searchContent(String key, boolean quick, String pg) {
-        return app.callAttr("searchContentPage", obj, key, quick, pg).toString();
+        return app.callAttr("searchContent", obj, key, quick, pg).toString();
     }
 
     @Override
     public String playerContent(String flag, String id, List<String> vipFlags) {
-        return replaceProxy(app.callAttr("playerContent", obj, flag, id, gson.toJson(vipFlags)).toString());
+        return app.callAttr("playerContent", obj, flag, id, gson.toJson(vipFlags)).toString();
+    }
+
+    @Override
+    public String liveContent() {
+        return app.callAttr("liveContent", obj).toString();
     }
 
     @Override
@@ -89,47 +90,42 @@ public class Spider extends com.github.catvod.crawler.Spider {
     }
 
     @Override
-    public Object[] proxyLocal(Map<String, String> params) throws Exception {
+    public Object[] proxyLocal(Map<String, String> params) {
         List<PyObject> list = app.callAttr("localProxy", obj, gson.toJson(params)).asList();
-        int code = list.get(0).toInt();
-        String type = list.get(1).toString();
-        String action = list.get(2).toString();
-        String content = list.get(3).toString();
-        JSONObject object = new JSONObject(action);
-        String url = object.optString("url");
-        Headers header = getHeader(object.optString("header"));
-        ArrayMap<String, String> param = getParam(object.optString("param"));
-        if (object.optString("type").equals("stream")) {
-            return new Object[]{code, type, OkHttp.newCall(url, header, param).execute().body().byteStream()};
+        Map<PyObject, PyObject> headers = list.size() > 3 ? list.get(3).asMap() : null;
+        boolean base64 = list.size() > 4 && list.get(4).toInt() == 1;
+        PyObject r2 = list.get(2);
+        Object[] result = new Object[4];
+        result[0] = list.get(0).toInt();
+        result[1] = list.get(1).toString();
+        result[2] = r2 == null ? null : getStream(r2, base64);
+        result[3] = headers;
+        return result;
+    }
+
+    @Override
+    public String action(String action) {
+        return app.callAttr("action", obj, action).toString();
+    }
+
+    @Override
+    public void destroy() {
+        app.callAttr("destroy", obj);
+    }
+
+    private ByteArrayInputStream getStream(PyObject o, boolean base64) {
+        if (o.type().toString().contains("bytes")) {
+            return new ByteArrayInputStream(o.toJava(byte[].class));
         } else {
-            if (content.isEmpty()) content = OkHttp.newCall(url, header).execute().body().string();
-            return new Object[]{code, type, new ByteArrayInputStream(replaceProxy(content).getBytes())};
+            String content = o.toString();
+            if (base64 && content.contains("base64,")) content = content.split("base64,")[1];
+            return new ByteArrayInputStream(base64 ? Util.decode(content) : content.getBytes());
         }
     }
 
-    private String replaceProxy(String content) {
-        return content.replace("http://127.0.0.1:UndCover/proxy?", Proxy.getUrl(true) + "?do=py&");
-    }
-
-    private Headers getHeader(String header) throws JSONException {
-        Headers.Builder builder = new Headers.Builder();
-        if (TextUtils.isEmpty(header)) return builder.build();
-        JSONObject object = new JSONObject(header);
-        for (Iterator<String> iterator = object.keys(); iterator.hasNext(); ) {
-            String key = iterator.next();
-            builder.add(key, object.optString(key));
-        }
-        return builder.build();
-    }
-
-    private ArrayMap<String, String> getParam(String param) throws JSONException {
-        ArrayMap<String, String> params = new ArrayMap<>();
-        if (TextUtils.isEmpty(param)) return params;
-        JSONObject object = new JSONObject(param);
-        for (Iterator<String> iterator = object.keys(); iterator.hasNext(); ) {
-            String key = iterator.next();
-            params.put(key, object.optString(key));
-        }
-        return params;
+    private void download(String name) {
+        String path = Path.py(name).getAbsolutePath();
+        String url = UriUtil.resolve(api, name);
+        app.callAttr("download", path, url);
     }
 }

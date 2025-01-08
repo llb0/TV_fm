@@ -26,6 +26,7 @@ public class Group {
 
     private boolean selected;
     private int position;
+    private int width;
 
     public static List<Group> arrayFrom(String str) {
         Type listType = new TypeToken<List<Group>>() {}.getType();
@@ -33,12 +34,12 @@ public class Group {
         return items == null ? Collections.emptyList() : items;
     }
 
-    public static Group create(@StringRes int resId) {
-        return new Group(ResUtil.getString(resId));
+    public static Group create() {
+        return create(R.string.setting_live);
     }
 
-    public static Group create(String name) {
-        return new Group(name);
+    public static Group create(@StringRes int resId) {
+        return new Group(ResUtil.getString(resId));
     }
 
     public static Group create(String name, boolean pass) {
@@ -53,6 +54,7 @@ public class Group {
         this.name = name;
         this.position = -1;
         if (name.contains("_")) parse(pass);
+        if (name.isEmpty()) setName(ResUtil.getString(R.string.setting_live));
     }
 
     private void parse(boolean pass) {
@@ -100,6 +102,14 @@ public class Group {
 
     public void setPosition(int position) {
         this.position = position;
+    }
+
+    public int getWidth() {
+        return width;
+    }
+
+    public void setWidth(int width) {
+        this.width = width;
     }
 
     public boolean isHidden() {

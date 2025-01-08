@@ -10,7 +10,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
@@ -20,7 +19,7 @@ public class Path {
 
     private static final String TAG = Path.class.getSimpleName();
 
-    private static File check(File file) {
+    private static File mkdir(File file) {
         if (!file.exists()) file.mkdirs();
         return file;
     }
@@ -33,8 +32,21 @@ public class Path {
         return Environment.getExternalStorageDirectory();
     }
 
+    public static File download() {
+        return Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+    }
+
     public static File cache() {
         return Init.context().getCacheDir();
+    }
+
+    public static File thunderCache() {
+        File internal = Init.context().getCacheDir();
+        String dir = Prefers.getString("thunder_cache_dir", internal.getAbsolutePath());
+        if (dir.equals(internal.getAbsolutePath())) return internal;
+        File cache = new File(dir);
+        if (!cache.exists()) return internal;
+        return cache;
     }
 
     public static File files() {
@@ -45,40 +57,52 @@ public class Path {
         return root().getAbsolutePath();
     }
 
+    public static String downloadPath() {
+        return download().getAbsolutePath();
+    }
+
     public static File tv() {
-        return check(new File(root() + File.separator + "TV"));
+        return mkdir(new File(root() + File.separator + "TV"));
     }
 
     public static File so() {
-        return check(new File(files() + File.separator + "so"));
+        return mkdir(new File(files() + File.separator + "so"));
     }
 
     public static File js() {
-        return check(new File(cache() + File.separator + "js"));
+        return mkdir(new File(cache() + File.separator + "js"));
     }
 
     public static File py() {
-        return check(new File(cache() + File.separator + "py"));
+        return mkdir(new File(cache() + File.separator + "py"));
     }
 
     public static File jar() {
-        return check(new File(cache() + File.separator + "jar"));
+        return mkdir(new File(cache() + File.separator + "jar"));
     }
 
     public static File doh() {
-        return check(new File(cache() + File.separator + "doh"));
+        return mkdir(new File(cache() + File.separator + "doh"));
     }
 
     public static File exo() {
-        return check(new File(cache() + File.separator + "exo"));
+        return mkdir(new File(cache() + File.separator + "exo"));
+    }
+
+    public static File epg() {
+        return mkdir(new File(cache() + File.separator + "epg"));
     }
 
     public static File jpa() {
-        return check(new File(cache() + File.separator + "jpa"));
+        return mkdir(new File(thunderCache() + File.separator + "jpa"));
     }
 
     public static File thunder() {
-        return check(new File(cache() + File.separator + "thunder"));
+        return mkdir(new File(thunderCache() + File.separator + "thunder"));
+    }
+
+    public static File restore() {
+        return mkdir(new File(cache() + File.separator + "restore"));
     }
 
     public static File root(String name) {
@@ -86,7 +110,7 @@ public class Path {
     }
 
     public static File root(String child, String name) {
-        return new File(check(new File(root(), child)), name);
+        return new File(mkdir(new File(root(), child)), name);
     }
 
     public static File cache(String name) {
@@ -97,8 +121,16 @@ public class Path {
         return new File(files(), name);
     }
 
+    public static File epg(String name) {
+        return new File(epg(), name);
+    }
+
     public static File js(String name) {
         return new File(js(), name);
+    }
+
+    public static File py(String name) {
+        return new File(py(), name);
     }
 
     public static File jar(String name) {
@@ -106,21 +138,13 @@ public class Path {
     }
 
     public static File thunder(String name) {
-        return check(new File(thunder(), name));
+        return mkdir(new File(thunder(), name));
     }
 
     public static File local(String path) {
         File file1 = new File(path.replace("file:/", ""));
         File file2 = new File(path.replace("file:/", rootPath()));
         return file2.exists() ? file2 : file1.exists() ? file1 : new File(path);
-    }
-
-    public static String asset(String fileName) {
-        try {
-            return read(Init.context().getAssets().open(fileName));
-        } catch (Exception e) {
-            return "";
-        }
     }
 
     public static String read(File file) {
@@ -151,15 +175,28 @@ public class Path {
         }
     }
 
+    public static byte[] readToByte(File file) {
+        try {
+            FileInputStream is = new FileInputStream(file);
+            byte[] data = new byte[is.available()];
+            is.read(data);
+            is.close();
+            return data;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return new byte[0];
+        }
+    }
+
     public static File write(File file, byte[] data) {
         try {
-            FileOutputStream fos = new FileOutputStream(file);
+            FileOutputStream fos = new FileOutputStream(create(file));
             fos.write(data);
             fos.flush();
             fos.close();
-            chmod(file);
             return file;
         } catch (Exception ignored) {
+            ignored.printStackTrace();
             return file;
         }
     }
@@ -171,29 +208,19 @@ public class Path {
 
     public static void copy(File in, File out) {
         try {
-            copy(new FileInputStream(in), new FileOutputStream(out));
+            copy(new FileInputStream(in), out);
         } catch (Exception ignored) {
         }
     }
 
     public static void copy(InputStream in, File out) {
         try {
-            copy(in, new FileOutputStream(out));
-        } catch (Exception ignored) {
-        }
-    }
-
-    public static void copy(InputStream in, OutputStream out) throws IOException {
-        byte[] buffer = new byte[8192];
-        int amountRead;
-        while ((amountRead = in.read(buffer)) != -1) {
-            out.write(buffer, 0, amountRead);
-        }
-    }
-
-    public static void newFile(File file) {
-        try {
-            file.createNewFile();
+            int read;
+            byte[] buffer = new byte[8192];
+            FileOutputStream fos = new FileOutputStream(create(out));
+            while ((read = in.read(buffer)) != -1) fos.write(buffer, 0, read);
+            fos.close();
+            in.close();
         } catch (Exception ignored) {
         }
     }
@@ -209,10 +236,11 @@ public class Path {
         if (dir.delete()) Log.d(TAG, "Deleted:" + dir.getAbsolutePath());
     }
 
-    public static File chmod(File file) {
+    public static File create(File file) throws Exception {
         try {
-            Process process = Runtime.getRuntime().exec("chmod 777 " + file);
-            process.waitFor();
+            if (!file.canWrite()) file.setWritable(true);
+            if (!file.exists()) file.createNewFile();
+            Shell.exec("chmod 777 " + file);
             return file;
         } catch (Exception e) {
             e.printStackTrace();

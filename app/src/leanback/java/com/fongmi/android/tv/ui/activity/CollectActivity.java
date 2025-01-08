@@ -22,7 +22,7 @@ import androidx.viewpager.widget.ViewPager;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.Constant;
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.api.ApiConfig;
+import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Collect;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.databinding.ActivityCollectBinding;
@@ -35,8 +35,6 @@ import com.fongmi.android.tv.utils.ResUtil;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 public class CollectActivity extends BaseActivity {
 
@@ -117,8 +115,8 @@ public class CollectActivity extends BaseActivity {
 
     private void setSite() {
         mSites = new ArrayList<>();
-        for (Site site : ApiConfig.get().getSites()) if (site.isSearchable()) mSites.add(site);
-        Site home = ApiConfig.get().getHome();
+        for (Site site : VodConfig.get().getSites()) if (site.isSearchable()) mSites.add(site);
+        Site home = VodConfig.get().getHome();
         if (!mSites.contains(home)) return;
         mSites.remove(home);
         mSites.add(0, home);
@@ -127,7 +125,7 @@ public class CollectActivity extends BaseActivity {
     private void search() {
         mAdapter.add(Collect.all());
         mBinding.pager.getAdapter().notifyDataSetChanged();
-        mExecutor = new PauseExecutor(Constant.THREAD_POOL, 0, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+        mExecutor = new PauseExecutor(Constant.THREAD_POOL);
         mBinding.result.setText(getString(R.string.collect_result, getKeyword()));
         for (Site site : mSites) mExecutor.execute(() -> search(site));
     }

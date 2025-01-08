@@ -30,6 +30,7 @@ public class Parse {
     private Ext ext;
 
     private boolean activated;
+    private String click;
 
     public static Parse objectFrom(JsonElement element) {
         return App.gson().fromJson(element, Parse.class);
@@ -95,12 +96,24 @@ public class Parse {
         this.activated = item.equals(this);
     }
 
+    public String getClick() {
+        return TextUtils.isEmpty(click) ? "" : click;
+    }
+
+    public void setClick(String click) {
+        this.click = click;
+    }
+
     public Map<String, String> getHeaders() {
         return Json.toMap(getExt().getHeader());
     }
 
     public void setHeader(JsonElement header) {
         if (getExt().getHeader() == null) getExt().setHeader(header);
+    }
+
+    public boolean isEmpty() {
+        return getType() == 0 && getUrl().isEmpty();
     }
 
     @Override
@@ -114,7 +127,7 @@ public class Parse {
     public String extUrl() {
         int index = getUrl().indexOf("?");
         if (getExt().isEmpty() || index == -1) return getUrl();
-        return getUrl().substring(0, index + 1) + "cat_ext=" + Util.base64(getExt().toString()) + "&" + getUrl().substring(index + 1);
+        return getUrl().substring(0, index + 1) + "cat_ext=" + Util.base64(getExt().toString(), Util.URL_SAFE) + "&" + getUrl().substring(index + 1);
     }
 
     public HashMap<String, String> mixMap() {

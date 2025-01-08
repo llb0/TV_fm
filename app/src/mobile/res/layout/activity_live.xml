@@ -15,20 +15,10 @@
         android:focusable="true">
 
         <androidx.media3.ui.PlayerView
-            android:id="@+id/surface"
+            android:id="@+id/exo"
             style="@style/Player.Live"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:visibility="gone"
-            app:surface_type="surface_view" />
-
-        <androidx.media3.ui.PlayerView
-            android:id="@+id/texture"
-            style="@style/Player.Live"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:visibility="gone"
-            app:surface_type="texture_view" />
+            android:layout_height="match_parent" />
 
         <tv.danmaku.ijk.media.player.ui.IjkVideoView
             android:id="@+id/ijk"
@@ -46,6 +36,13 @@
         android:layout_height="match_parent" />
 
     <include
+        android:id="@+id/display"
+        layout="@layout/view_widget_display"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <include
         android:id="@+id/control"
         layout="@layout/view_control_live"
         android:layout_width="match_parent"
@@ -58,7 +55,8 @@
         android:layout_height="match_parent"
         android:background="@drawable/shape_live_list"
         android:orientation="horizontal"
-        android:visibility="gone">
+        android:visibility="gone"
+        tools:visibility="visible">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/group"
@@ -80,7 +78,7 @@
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/channel"
-            android:layout_width="280dp"
+            android:layout_width="0dp"
             android:layout_height="match_parent"
             android:clipChildren="false"
             android:clipToPadding="false"
